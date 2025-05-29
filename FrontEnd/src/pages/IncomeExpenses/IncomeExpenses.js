@@ -142,7 +142,7 @@ function IncomeExpenses() {
   const chartData = {
     datasets: [
       {
-        label: "Soil Moisture",
+        label: " Moisture",
         data: dataPoints,
         fill: false,
         borderColor: "#007bff",
@@ -157,7 +157,7 @@ function IncomeExpenses() {
       legend: { display: true },
       title: {
         display: true,
-        text: `Soil Moisture (Last ${timeRange} Minutes)`,
+        text: ` Moisture (Last ${timeRange} Minutes)`,
       },
     },
     scales: {
@@ -178,7 +178,7 @@ function IncomeExpenses() {
 
   return (
     <Container>
-      <h1 className="text-center m-4">Soil Moisture Live Chart</h1>
+      <h1 className="text-center m-4"> Moisture Live Chart</h1>
 
       <Form>
         <Form.Group as={Row} className="mb-3">
@@ -200,6 +200,21 @@ function IncomeExpenses() {
       <Card className="p-4">
         <Line data={chartData} options={chartOptions} />
       </Card>
+      <h5 className="m-4">
+        <span className=" text-danger fw-bold">**</span>This system measures the
+        moisture level inside the seed container using a soil moisture sensor.
+        The moisture percentage is calculated based on raw sensor values and
+        classified as follows: <br />
+        <span className=" text-danger fw-bold">**</span> 100% – 70% (Too Wet):
+        Not suitable for seed storage, high risk of rot or fungal growth.
+        <br />
+        <span className=" text-danger fw-bold">** </span>
+        69% – 40% (Moderate): Slightly moist, suitable for germination but not
+        long-term storage.
+        <br />
+        <span className=" text-danger fw-bold">**</span> 39% – 0% (Dry - Ideal):
+        Best condition for seed storage, keeps seeds safe and long-lasting."
+      </h5>
     </Container>
   );
 }

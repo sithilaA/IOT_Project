@@ -201,6 +201,15 @@ function IncomeCategories() {
       <Card className="p-4">
         <Line data={chartData} options={chartOptions} />
       </Card>
+      <h4 className="m-4">
+        <span className=" text-danger fw-bold">**</span>🔒 Recommended Humidity
+        Range for Seed Storage: Relative Humidity (RH): 20% to 40% Ideal target
+        is around 30% RH or lower for long-term storage. <br />
+        <span className=" text-danger fw-bold">**</span> 🌡️ Why This Range? Too
+        high (50%): Promotes mold, bacteria, and seed deterioration. Too low
+        (20%): Might dry out seeds excessively, although most seeds tolerate
+        this better than high humidity.
+      </h4>
     </Container>
   );
 }

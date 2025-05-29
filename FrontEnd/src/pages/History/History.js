@@ -48,7 +48,7 @@ function History() {
     scales: {
       x: {
         type: "time",
-        time: { unit: "day", tooltipFormat: "YYYY-MM-DD HH:mm" },
+        time: { unit: "day", tooltipFormat: "yyyy-MM-dd HH:mm" }, // Corrected format
         title: { display: true, text: "Time" },
       },
       y: {
@@ -71,7 +71,7 @@ function History() {
 
   const chartOptionsList = [
     { value: "humidity_snapshots", label: "Humidity" },
-    { value: "soil_moisture_snapshots", label: "Soil Moisture" },
+    { value: "soil_moisture_snapshots", label: " Moisture" },
     { value: "temperature_snapshots", label: "Temperature" },
   ];
 
@@ -87,12 +87,17 @@ function History() {
         const querySnapshot = await getDocs(q);
         querySnapshot.forEach((doc) => {
           const data = doc.data();
-          if (data.snapshot && Array.isArray(data.snapshot)) {
-            data.snapshot.forEach((point) => {
-              allData.push({
-                x: point.x, // Access x value directly
-                y: point.y, // Access y value directly
-              });
+          console.log("Fetched data:", data);
+          if (
+            data.snapshot &&
+            Array.isArray(data.snapshot) &&
+            data.snapshot.length > 0
+          ) {
+            // Only take the first point
+            const point = data.snapshot[0];
+            allData.push({
+              x: point.x.toDate(), // Convert Firebase Timestamp to JavaScript Date
+              y: point.y,
             });
           }
         });

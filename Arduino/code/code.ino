@@ -19,7 +19,7 @@
 // Sensor pins
 #define SOIL_MOISTURE_PIN 34
 #define DHT_PIN 4
-#define ONE_WIRE_BUS 12
+#define ONE_WIRE_BUS 5
 #define DHT_TYPE DHT11
 #define LED_BUILTIN_PIN 2
 

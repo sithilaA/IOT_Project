@@ -43,9 +43,27 @@ function Dashboard() {
 
   return (
     <Container>
-      <h2 className="text-center my-4">Dashboard</h2>
+      <h2 className="text-center my-4 mb-4">Dashboard</h2>
       {sensorData && (
         <Row className="g-4">
+          <Row className="text-center mb-4 d-flex justify-content-end">
+            <Col md={4}>
+              <Card border="secondary" className="shadow-lg">
+                <Card.Body>
+                  <Card.Title>Alarm Status</Card.Title>
+                  <Form>
+                    <Form.Check
+                      type="switch"
+                      id="alarm-switch"
+                      label={led ? "Alarm On" : "Alarm Off"}
+                      checked={led}
+                      onChange={toggleAlarm}
+                    />
+                  </Form>
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
           <Col md={4}>
             <Card border="primary" className="shadow-lg">
               <Card.Body>
@@ -165,7 +183,7 @@ function Dashboard() {
           <Col md={4}>
             <Card border="info" className="shadow-lg">
               <Card.Body>
-                <Card.Title>Soil Moisture Raw</Card.Title>
+                <Card.Title> Moisture Raw</Card.Title>
                 <Card.Text
                   className=" text-center text-primary"
                   style={{ fontSize: "1.5rem" }}
@@ -197,7 +215,7 @@ function Dashboard() {
           <Col md={4}>
             <Card border="dark" className="shadow-lg">
               <Card.Body>
-                <Card.Title>Soil Moisture Value</Card.Title>
+                <Card.Title> Moisture Value</Card.Title>
                 <Card.Text
                   className=" text-center text-primary"
                   style={{ fontSize: "1.5rem" }}
@@ -222,23 +240,6 @@ function Dashboard() {
                     </span>
                   )}
                 </p>
-              </Card.Body>
-            </Card>
-          </Col>
-
-          <Col md={4}>
-            <Card border="secondary" className="shadow-lg">
-              <Card.Body>
-                <Card.Title>Alarm Status</Card.Title>
-                <Form>
-                  <Form.Check
-                    type="switch"
-                    id="alarm-switch"
-                    label={led ? "Alarm On" : "Alarm Off"}
-                    checked={led}
-                    onChange={toggleAlarm}
-                  />
-                </Form>
               </Card.Body>
             </Card>
           </Col>

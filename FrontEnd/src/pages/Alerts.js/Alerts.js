@@ -69,69 +69,71 @@ function Alerts() {
   };
 
   return (
-    <Container>
-      <h1>Alert Configuration</h1>
-      <Form onSubmit={handleSubmit}>
-        <Form.Group as={Row} className="mb-3">
-          <Form.Label column sm="4">
-            Max Soil Moisture:
-          </Form.Label>
-          <Col sm="8">
-            <Form.Control
-              type="number"
-              name="maxSoilMoisture"
-              value={alertConfig.maxSoilMoisture}
-              onChange={handleChange}
-            />
-          </Col>
-        </Form.Group>
+    <Container className=" shadow-lg rounded-2">
+      <div className="text-center m-4">
+        <h1 className="m-5">Alert Configuration</h1>
+        <Form onSubmit={handleSubmit}>
+          <Form.Group as={Row} className="mb-3">
+            <Form.Label column sm="4">
+              Max Soil Moisture:
+            </Form.Label>
+            <Col sm="8">
+              <Form.Control
+                type="number"
+                name="maxSoilMoisture"
+                value={alertConfig.maxSoilMoisture}
+                onChange={handleChange}
+              />
+            </Col>
+          </Form.Group>
 
-        <Form.Group as={Row} className="mb-3">
-          <Form.Label column sm="4">
-            Max Temperature:
-          </Form.Label>
-          <Col sm="8">
-            <Form.Control
-              type="number"
-              name="maxTemperature"
-              value={alertConfig.maxTemperature}
-              onChange={handleChange}
-            />
-          </Col>
-        </Form.Group>
+          <Form.Group as={Row} className="mb-3">
+            <Form.Label column sm="4">
+              Max Temperature:
+            </Form.Label>
+            <Col sm="8">
+              <Form.Control
+                type="number"
+                name="maxTemperature"
+                value={alertConfig.maxTemperature}
+                onChange={handleChange}
+              />
+            </Col>
+          </Form.Group>
 
-        <Form.Group as={Row} className="mb-3">
-          <Form.Label column sm="4">
-            Min Soil Moisture:
-          </Form.Label>
-          <Col sm="8">
-            <Form.Control
-              type="number"
-              name="minSoilMoisture"
-              value={alertConfig.minSoilMoisture}
-              onChange={handleChange}
-            />
-          </Col>
-        </Form.Group>
+          <Form.Group as={Row} className="mb-3">
+            <Form.Label column sm="4">
+              Min Soil Moisture:
+            </Form.Label>
+            <Col sm="8">
+              <Form.Control
+                type="number"
+                name="minSoilMoisture"
+                value={alertConfig.minSoilMoisture}
+                onChange={handleChange}
+              />
+            </Col>
+          </Form.Group>
 
-        <Form.Group as={Row} className="mb-3">
-          <Form.Label column sm="4">
-            Min Temperature:
-          </Form.Label>
-          <Col sm="8">
-            <Form.Control
-              type="number"
-              name="minTemperature"
-              value={alertConfig.minTemperature}
-              onChange={handleChange}
-            />
-          </Col>
-        </Form.Group>
+          <Form.Group as={Row} className="mb-3">
+            <Form.Label column sm="4">
+              Min Temperature:
+            </Form.Label>
+            <Col sm="8">
+              <Form.Control
+                type="number"
+                name="minTemperature"
+                value={alertConfig.minTemperature}
+                onChange={handleChange}
+              />
+            </Col>
+          </Form.Group>
 
-        <Button variant="primary" type="submit">
-          Save Changes
-        </Button>
-      </Form>
+          <Button variant="primary" type="submit" className="m-5">
+            Save Changes
+          </Button>
+        </Form>
+      </div>
     </Container>
   );
 }

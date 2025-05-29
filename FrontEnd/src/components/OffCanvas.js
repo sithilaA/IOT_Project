@@ -129,7 +129,7 @@ function OffCanvas() {
 
               <Dropdown.Menu className="container">
                 <Dropdown.Item onClick={handleBtnClickIncome}>
-                  Soil Moisture
+                  Moisture
                 </Dropdown.Item>
                 <Dropdown.Item onClick={handleBtnClickIncomeCate}>
                   Humidity
