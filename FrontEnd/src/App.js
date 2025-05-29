@@ -13,6 +13,8 @@ import IncomeCategories from "./pages/IncomeCategories/IncomeCategories";
 import ExpenseCategories from "./pages/ExpenseCategories/ExpenseCategories";
 import NavBar from "./components/NavBar";
 import MainLayout from "./pages/MainLayout";
+import Alerts from "./pages/Alerts.js/Alerts";
+import History from "./pages/History/History";
 
 function App() {
   return (
@@ -33,6 +35,8 @@ function App() {
           <Route path="/incomeCategories" element={<IncomeCategories />} />
           <Route path="/expenseCategories" element={<ExpenseCategories />} />
           <Route path="/devices" element={<ExpenseCategories />} />
+          <Route path="/alerts" element={<Alerts />} />
+          <Route path="/history" element={<History />} />
         </Route>
       </Routes>
     </BrowserRouter>

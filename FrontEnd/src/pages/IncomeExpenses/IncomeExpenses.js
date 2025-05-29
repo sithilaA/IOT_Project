@@ -1,101 +1,206 @@
-import React from "react";
-import Table from "react-bootstrap/Table";
-import Button from "react-bootstrap/Button";
-import ButtonGroup from "react-bootstrap/ButtonGroup";
-import Form from "react-bootstrap/Form";
+import React, { useEffect, useRef, useState } from "react";
+import { Card, Container, Form, Row, Col } from "react-bootstrap";
+import { Line } from "react-chartjs-2";
+import {
+  getFirestore,
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+  addDoc,
+  serverTimestamp,
+  getDocs,
+} from "firebase/firestore";
+import { getDatabase, ref, onValue } from "firebase/database";
+import { app } from "../../services/firebase";
+import {
+  Chart as ChartJS,
+  LineElement,
+  PointElement,
+  LinearScale,
+  TimeScale,
+  Title,
+  Tooltip,
+  Legend,
+} from "chart.js";
+import "chartjs-adapter-date-fns";
+
+ChartJS.register(
+  LineElement,
+  PointElement,
+  LinearScale,
+  TimeScale,
+  Title,
+  Tooltip,
+  Legend
+);
 
 function IncomeExpenses() {
+  const [dataPoints, setDataPoints] = useState([]);
+  const db = getFirestore(app);
+  const snapshotRef = useRef([]);
+  const [realtimeData, setRealtimeData] = useState(null);
+  const [historicalData, setHistoricalData] = useState([]);
+  const [timeRange, setTimeRange] = useState("10"); // Default 10 minutes
+
+  const timeRangeOptions = [
+    { value: "10", label: "Last 10 mins" },
+    { value: "30", label: "Last 30 mins" },
+    { value: "60", label: "Last 1 hour" },
+  ];
+
+  // Fetch Historical Data on Load
+  useEffect(() => {
+    const fetchHistoricalData = async () => {
+      const now = new Date();
+      const timeAgo = new Date(now.getTime() - parseInt(timeRange) * 60 * 1000);
+
+      const q = query(
+        collection(db, "soil_moisture_snapshots"),
+        orderBy("createdAt", "desc")
+      );
+
+      const querySnapshot = await getDocs(q);
+      const historicalPoints = [];
+
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.createdAt && data.createdAt.toDate() >= timeAgo) {
+          data.snapshot.forEach((point) => {
+            historicalPoints.push({
+              x: new Date(point.x),
+              y: point.y,
+            });
+          });
+        }
+      });
+      setHistoricalData(historicalPoints);
+    };
+
+    fetchHistoricalData();
+  }, [db, timeRange]);
+
+  // Fetch Realtime Data from Firebase Realtime Database
+  useEffect(() => {
+    const rtdb = getDatabase(app);
+    const sensorDataRef = ref(rtdb, "sensor_data/latest");
+
+    const unsubscribe = onValue(sensorDataRef, (snapshot) => {
+      const data = snapshot.val();
+      setRealtimeData(data);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  // Transform Realtime Data and Combine with Historical Data
+  useEffect(() => {
+    if (realtimeData) {
+      const now = new Date();
+      const newDataPoint = {
+        x: now,
+        y: realtimeData.soil_moisture?.value,
+      };
+
+      setDataPoints((prevDataPoints) => {
+        const updatedDataPoints = [
+          ...historicalData,
+          ...prevDataPoints,
+          newDataPoint,
+        ];
+        const timeAgo = new Date(
+          now.getTime() - parseInt(timeRange) * 60 * 1000
+        );
+        return updatedDataPoints.filter((point) => point.x >= timeAgo);
+      });
+
+      snapshotRef.current = [...dataPoints, newDataPoint];
+    }
+  }, [realtimeData, historicalData, timeRange]);
+
+  // Save Snapshot to Firestore every 1 minute
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (snapshotRef.current.length > 0) {
+        try {
+          await addDoc(collection(db, "soil_moisture_snapshots"), {
+            snapshot: snapshotRef.current,
+            createdAt: serverTimestamp(),
+          });
+          console.log("Snapshot saved to Firestore");
+        } catch (error) {
+          console.error("Error saving snapshot:", error);
+        }
+      }
+    }, 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [db]);
+
+  const chartData = {
+    datasets: [
+      {
+        label: "Soil Moisture",
+        data: dataPoints,
+        fill: false,
+        borderColor: "#007bff",
+        tension: 0.1,
+      },
+    ],
+  };
+
+  const chartOptions = {
+    responsive: true,
+    plugins: {
+      legend: { display: true },
+      title: {
+        display: true,
+        text: `Soil Moisture (Last ${timeRange} Minutes)`,
+      },
+    },
+    scales: {
+      x: {
+        type: "time",
+        time: { unit: "second", tooltipFormat: "HH:mm:ss" },
+        title: { display: true, text: "Time" },
+      },
+      y: {
+        title: { display: true, text: "Moisture Value" },
+      },
+    },
+  };
+
+  const handleTimeRangeChange = (e) => {
+    setTimeRange(e.target.value);
+  };
+
   return (
-    <div>
-      <div className="container m-auto">
-        <h1 className="text-center m-3">Income Expenses Table </h1>
-        <div className="d-flex justify-content-between align-items-end m-3">
-          <div className="d-flex ">
-            <Form.Select aria-label="Select Year" className="m-1">
-              <option>Select Year</option>
-              <option value="2024">2024</option>
-              <option value="2023">2023</option>
-              <option value="2022">2022</option>
+    <Container>
+      <h1 className="text-center m-4">Soil Moisture Live Chart</h1>
+
+      <Form>
+        <Form.Group as={Row} className="mb-3">
+          <Form.Label column sm="2">
+            Time Range:
+          </Form.Label>
+          <Col sm="10">
+            <Form.Select onChange={handleTimeRangeChange} value={timeRange}>
+              {timeRangeOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </Form.Select>
-            <Form.Select aria-label="Select Month" className="m-1">
-              <option>Select Month</option>
-              <option value="1">January</option>
-              <option value="2">February</option>
-              <option value="3">March</option>
-              <option value="4">April</option>
-              <option value="5">May</option>
-              <option value="6">June</option>
-              <option value="7">July</option>
-              <option value="8">August</option>
-              <option value="9">September</option>
-              <option value="10">October</option>
-              <option value="11">November</option>
-              <option value="12">December</option>
-            </Form.Select>
-          </div>
-          <div>
-            <ButtonGroup aria-label="Basic example">
-              <Button variant="outline-success">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="3.5vw"
-                  height="3.5vh"
-                  fill="currentColor"
-                  class="bi bi-file-plus-fill"
-                  viewBox="0 0 16 16"
-                >
-                  <path d="M12 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2M8.5 6v1.5H10a.5.5 0 0 1 0 1H8.5V10a.5.5 0 0 1-1 0V8.5H6a.5.5 0 0 1 0-1h1.5V6a.5.5 0 0 1 1 0" />
-                </svg>
-              </Button>
-              <Button variant="outline-danger">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="3.5vw"
-                  height="3.5vh"
-                  fill="currentColor"
-                  class="bi bi-trash-fill"
-                  viewBox="0 0 16 16"
-                >
-                  <path d="M2.5 1a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1H3v9a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V4h.5a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H10a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1zm3 4a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-1 0v-7a.5.5 0 0 1 .5-.5M8 5a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-1 0v-7A.5.5 0 0 1 8 5m3 .5v7a.5.5 0 0 1-1 0v-7a.5.5 0 0 1 1 0" />
-                </svg>
-              </Button>
-            </ButtonGroup>
-          </div>
-        </div>
-        <div>
-          <Table striped bordered hover>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>First Name</th>
-                <th>Last Name</th>
-                <th>Username</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>1</td>
-                <td>Mark</td>
-                <td>Otto</td>
-                <td>@mdo</td>
-              </tr>
-              <tr>
-                <td>2</td>
-                <td>Jacob</td>
-                <td>Thornton</td>
-                <td>@fat</td>
-              </tr>
-              <tr>
-                <td>3</td>
-                <td colSpan={2}>Larry the Bird</td>
-                <td>@twitter</td>
-              </tr>
-            </tbody>
-          </Table>
-        </div>
-      </div>
-      <div></div>
-    </div>
+          </Col>
+        </Form.Group>
+      </Form>
+
+      <Card className="p-4">
+        <Line data={chartData} options={chartOptions} />
+      </Card>
+    </Container>
   );
 }
 

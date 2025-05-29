@@ -19,9 +19,15 @@
 // Sensor pins
 #define SOIL_MOISTURE_PIN 34
 #define DHT_PIN 4
-#define ONE_WIRE_BUS 5
+#define ONE_WIRE_BUS 12
 #define DHT_TYPE DHT11
 #define LED_BUILTIN_PIN 2
+
+// IR Sensor Pins
+#define IR_SENSOR_1 32
+#define IR_SENSOR_2 25
+#define IR_SENSOR_3 27
+
 
 
 DHT dht(DHT_PIN, DHT_TYPE);
@@ -47,6 +53,10 @@ enum DisplayState {
   SHOW_HEAT_INDEX
 };
 DisplayState currentState = SHOW_SOIL_MOISTURE;
+
+bool ir1State = false;
+bool ir2State = false;
+bool ir3State = false;
 
 // Timing
 unsigned long lastUpdateTime = 0;
@@ -86,6 +96,11 @@ void setup() {
   Firebase.begin(&config, &auth);
   Firebase.reconnectWiFi(true);
 
+   // Initialize pins
+  pinMode(IR_SENSOR_1, INPUT);
+  pinMode(IR_SENSOR_2, INPUT);
+  pinMode(IR_SENSOR_3, INPUT);
+
 }
 
 void loop() {
@@ -94,6 +109,7 @@ void loop() {
   // Update sensors and send to Firebase
   if (currentTime - lastUpdateTime >= updateInterval) {
     readSensors();
+    readIrSensor();
     if (Firebase.ready()) {
       sendToFirebase();
       getFirebaseData();
@@ -221,6 +237,9 @@ void sendToFirebase() {
   json.set("dht/temperature", dhtTemp);
   json.set("ds18b20/temperature", ds18b20Temp);
   json.set("heat_index", heatIndex);
+  json.set("ir/ir1", ir1State);
+  json.set("ir/ir2", ir2State);
+  json.set("ir/ir3", ir3State);
   json.set("timestamp/.sv", "timestamp"); // Server timestamp
   
   // Send to Realtime Database
@@ -228,7 +247,7 @@ void sendToFirebase() {
     Serial.println("RTDB update success");
     //lcd.clear();
     //lcd.print("Data Uploaded!");
-    delay(1000);
+    //delay(1000);
   } else {
     Serial.println("RTDB error: " + fbdo.errorReason());
     lcd.clear();
@@ -274,5 +293,17 @@ void updateDisplay() {
       lcd.printf("%.1fC", heatIndex);
       currentState = SHOW_SOIL_MOISTURE;
       break;
+      
   }
+}
+void readIrSensor(){
+   ir1State = digitalRead(IR_SENSOR_1) == LOW;  // LOW when object detected
+  ir2State = digitalRead(IR_SENSOR_2) == LOW;
+  ir3State = digitalRead(IR_SENSOR_3) == LOW;
+
+  // Print to serial monitor
+  Serial.printf("IR States - 1: %s | 2: %s | 3: %s\n",
+               ir1State ? "ACTIVE" : "INACTIVE",
+               ir2State ? "ACTIVE" : "INACTIVE",
+               ir3State ? "ACTIVE" : "INACTIVE");
 }

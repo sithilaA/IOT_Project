@@ -1,111 +1,207 @@
-import React, { useEffect } from "react";
-import Table from "react-bootstrap/Table";
-import Button from "react-bootstrap/Button";
-import ButtonGroup from "react-bootstrap/ButtonGroup";
-import Form from "react-bootstrap/Form";
-import { useState } from "react";
-import Modal from "react-bootstrap/Modal";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth, db } from "../../services/firebase";
-import { query, where, collection, addDoc, getDocs } from "firebase/firestore";
-import Modals from "../../components/Modals";
-import Spinner from "react-bootstrap/Spinner";
-import AddIncomeCategoryModal from "../../components/AddIncomeCategoryModal";
-import EditIncomeCategoryModal from "../../components/EditIncomeCategoryModal";
-import DeleteIncomeCategoryModal from "../../components/DeleteIncomeCategoryModal";
+import React, { useEffect, useRef, useState, useCallback } from "react";
+import { Card, Container, Form, Row, Col } from "react-bootstrap";
+import { Line } from "react-chartjs-2";
+import {
+  getFirestore,
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+  addDoc,
+  serverTimestamp,
+  getDocs,
+} from "firebase/firestore";
+import { getDatabase, ref, onValue } from "firebase/database";
+import { app } from "../../services/firebase";
+import {
+  Chart as ChartJS,
+  LineElement,
+  PointElement,
+  LinearScale,
+  TimeScale,
+  Title,
+  Tooltip,
+  Legend,
+} from "chart.js";
+import "chartjs-adapter-date-fns";
+
+ChartJS.register(
+  LineElement,
+  PointElement,
+  LinearScale,
+  TimeScale,
+  Title,
+  Tooltip,
+  Legend
+);
+
 function IncomeCategories() {
-  const [data, setData] = useState([]);
-  // Add New Data
+  const [dataPoints, setDataPoints] = useState([]);
+  const db = getFirestore(app);
+  const snapshotRef = useRef([]);
+  const [realtimeData, setRealtimeData] = useState(null);
+  const [historicalData, setHistoricalData] = useState([]);
+  const [timeRange, setTimeRange] = useState("10");
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
-  // Edit Data
-  const [editShow, setEditShow] = useState(false);
-  const handleEditClose = () => setEditShow(false);
-  const handleEditShow = () => setEditShow(true);
-  //
-  const [incomeCategory, setIncomeCategory] = useState("");
-  const [incomeDescription, setIncomeDescription] = useState("");
-  const [editId, setEditId] = useState(null);
-  const [validated, setValidated] = useState(false);
-  const email = localStorage.getItem("email");
-  // New Data Add
+  const timeRangeOptions = [
+    { value: "10", label: "Last 10 mins" },
+    { value: "30", label: "Last 30 mins" },
+    { value: "60", label: "Last 1 hour" },
+  ];
 
-  // Edit Data
-  const handleEditSubmit = (event) => {
-    const form = event.currentTarget;
-    if (form.checkValidity() === false) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-    setValidated(true);
-  };
-  function editIncomeCategories(inCategory, inDescription, id) {
-    setEditId(id);
-    setEditId(id); // Set the ID of the item being edited
-    setIncomeCategory(inCategory); // Update the state for incomeCategory
-    setIncomeDescription(inDescription); // Update the state for incomeDescription
-  }
-  async function getIncomeCategories() {
-    const email = localStorage.getItem("email");
-    const q = query(
-      collection(db, "incomeCategory"), // change to your collection name
-      where("userEmail", "==", email)
-    );
-    const querySnapshot = await getDocs(q);
-    const categories = querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-    setData(categories);
-  }
+  // Fetch Historical Data on Load
   useEffect(() => {
-    getIncomeCategories();
-  });
+    const fetchHistoricalData = async () => {
+      const now = new Date();
+      const timeAgo = new Date(now.getTime() - parseInt(timeRange) * 60 * 1000);
+
+      const q = query(
+        collection(db, "humidity_snapshots"),
+        orderBy("createdAt", "desc")
+      );
+
+      const querySnapshot = await getDocs(q);
+      const historicalPoints = [];
+
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.createdAt && data.createdAt.toDate() >= timeAgo) {
+          data.snapshot.forEach((point) => {
+            historicalPoints.push({
+              x: new Date(point.x),
+              y: point.y,
+            });
+          });
+        }
+      });
+      setHistoricalData(historicalPoints);
+    };
+
+    fetchHistoricalData();
+  }, [db, timeRange]);
+
+  // Fetch Realtime Data from Firebase Realtime Database
+  useEffect(() => {
+    const rtdb = getDatabase(app);
+    const sensorDataRef = ref(rtdb, "sensor_data/latest");
+
+    const unsubscribe = onValue(sensorDataRef, (snapshot) => {
+      const data = snapshot.val();
+      setRealtimeData(data);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  // Transform Realtime Data and Combine with Historical Data
+  useEffect(() => {
+    if (realtimeData) {
+      const now = new Date();
+      const newDataPoint = {
+        x: now,
+        y: realtimeData.dht?.humidity,
+      };
+
+      setDataPoints((prevDataPoints) => {
+        const updatedDataPoints = [
+          ...historicalData,
+          ...prevDataPoints,
+          newDataPoint,
+        ];
+        const timeAgo = new Date(
+          now.getTime() - parseInt(timeRange) * 60 * 1000
+        );
+        return updatedDataPoints.filter((point) => point.x >= timeAgo);
+      });
+
+      snapshotRef.current = [...dataPoints, newDataPoint];
+    }
+  }, [realtimeData, historicalData, timeRange]);
+
+  // Save Snapshot to Firestore every 1 minute
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (snapshotRef.current.length > 0) {
+        try {
+          await addDoc(collection(db, "humidity_snapshots"), {
+            snapshot: snapshotRef.current,
+            createdAt: serverTimestamp(),
+          });
+          console.log("Snapshot saved to Firestore");
+        } catch (error) {
+          console.error("Error saving snapshot:", error);
+        }
+      }
+    }, 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [db]);
+
+  const chartData = {
+    datasets: [
+      {
+        label: "Humidity",
+        data: dataPoints,
+        fill: false,
+        borderColor: "#007bff",
+        tension: 0.1,
+      },
+    ],
+  };
+
+  const chartOptions = {
+    responsive: true,
+    plugins: {
+      legend: { display: true },
+      title: {
+        display: true,
+        text: `Humidity (Last ${timeRange} Minutes)`,
+      },
+    },
+    scales: {
+      x: {
+        type: "time",
+        time: { unit: "second", tooltipFormat: "HH:mm:ss" },
+        title: { display: true, text: "Time" },
+      },
+      y: {
+        title: { display: true, text: "Humidity Value" },
+      },
+    },
+  };
+
+  const handleTimeRangeChange = (e) => {
+    setTimeRange(e.target.value);
+  };
+
   return (
-    <div>
-      <div>
-        <div className=" container m-auto">
-          <h1 className="text-center m-3">Income Categories</h1>
-          {/* Button Group */}
-          <div className="d-flex justify-content-between align-items-end m-3">
-            <div className="d-flex "></div>
-            <div className=" d-flex justify-content-end m-1">
-              <AddIncomeCategoryModal />
-              <EditIncomeCategoryModal />
-              <DeleteIncomeCategoryModal />
-            </div>
-          </div>
-          {/* Table */}
-          <div className=" container">
-            <Table striped bordered hover>
-              <thead>
-                <tr>
-                  <th></th>
-                  <th> </th>
-                  <th> </th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.length === 0 ? ( // Check if data is empty
-                  <tr>
-                    <td colSpan="4" className="text-center">
-                      <Spinner animation="grow" />
-                    </td>
-                  </tr>
-                ) : (
-                  data.map((item, index) => (
-                    <tr key={item.id}>
-                      <td>{index + 1}</td>
-                      <td>{item.incomeCategory}</td>
-                      <td>{item.incomeDescription}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </Table>
-          </div>
-        </div>
-      </div>
-    </div>
+    <Container>
+      <h1 className="text-center m-4">Humidity Live Chart</h1>
+
+      <Form>
+        <Form.Group as={Row} className="mb-3">
+          <Form.Label column sm="2">
+            Time Range:
+          </Form.Label>
+          <Col sm="10">
+            <Form.Select onChange={handleTimeRangeChange} value={timeRange}>
+              {timeRangeOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Form.Select>
+          </Col>
+        </Form.Group>
+      </Form>
+
+      <Card className="p-4">
+        <Line data={chartData} options={chartOptions} />
+      </Card>
+    </Container>
   );
 }
 
